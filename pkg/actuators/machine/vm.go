@@ -15,6 +15,11 @@ import (
 	clientpkg "github.com/openshift/machine-api-provider-nutanix/pkg/client"
 )
 
+// osidlabel contains machine label describing OS Type
+const (
+	osidlabel = "machine.openshift.io/os-id"
+)
+
 // validateVMConfig verifies if the machine's VM configuration is valid
 func validateVMConfig(mscp *machineScope) field.ErrorList {
 	errList := field.ErrorList{}
@@ -246,6 +251,28 @@ func createVM(mscp *machineScope, userData []byte) (*nutanixClientV3.VMIntentRes
 			klog.Infof("%s: added the category to the vm %q: %v", mscp.machine.Name, vmName, vmMetadata.Categories)
 		}
 
+		guestCustomization := &nutanixClientV3.GuestCustomization{} 
+		klog.Infof("checking os-id label on VM: %q", vmName)
+		if mscp.machine.Labels[osidlabel]== "Windows" {
+			klog.Infof("os-id: Windows found on VM: %q", vmName)
+			installType := "PREPARED"
+			guestCustomization = &nutanixClientV3.GuestCustomization{
+				IsOverridable: utils.BoolPtr(true),
+				Sysprep: &nutanixClientV3.GuestCustomizationSysprep{
+					InstallType: &installType,
+					UnattendXML: utils.StringPtr(userdataEncoded),
+				},
+			}
+		} else {
+			klog.Infof("os-id: Windows not found on VM: %q", vmName)
+			guestCustomization = &nutanixClientV3.GuestCustomization{
+				IsOverridable: utils.BoolPtr(true),
+				CloudInit: &nutanixClientV3.GuestCustomizationCloudInit{
+					UserData: utils.StringPtr(userdataEncoded),
+				},
+			}
+		}
+
 		vmSpec.Resources = &nutanixClientV3.VMResources{
 			PowerState:            utils.StringPtr("ON"),
 			HardwareClockTimezone: utils.StringPtr("UTC"),
@@ -254,9 +281,7 @@ func createVM(mscp *machineScope, userData []byte) (*nutanixClientV3.VMIntentRes
 			MemorySizeMib:         utils.Int64Ptr(GetMibValueOfQuantity(mscp.providerSpec.MemorySize)),
 			NicList:               nicList,
 			DiskList:              diskList,
-			GuestCustomization: &nutanixClientV3.GuestCustomization{
-				IsOverridable: utils.BoolPtr(true),
-				CloudInit:     &nutanixClientV3.GuestCustomizationCloudInit{UserData: utils.StringPtr(userdataEncoded)}},
+			GuestCustomization:    guestCustomization,
 		}
 
 		// Set cluster/PE reference

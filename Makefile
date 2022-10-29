@@ -32,7 +32,7 @@ VERSION     ?= $(shell git describe --always --abbrev=7)
 REPO_PATH   ?= github.com/openshift/machine-api-provider-nutanix
 LD_FLAGS    ?= -X $(REPO_PATH)/pkg/version.Raw=$(VERSION) -extldflags "-static"
 MUTABLE_TAG ?= latest
-IMAGE        = public.ecr.aws/g7v6l0u0/openshift/mapi-provider-nutanix
+IMAGE        = quay.io/wolfgangntnx/mapi-provider-nutanix
 BUILD_IMAGE ?= registry.ci.openshift.org/openshift/release:golang-1.18
 
 # race tests need CGO_ENABLED, everything else should have it disabled
